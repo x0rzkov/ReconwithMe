@@ -1,0 +1,9 @@
+requests
+sys
+re
+json
+os
+mysql.connector
+pymysql
+threading
+dns.resolver
