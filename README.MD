@@ -6,13 +6,13 @@
 # How to run ?
 python3 reconwithme.py https://facebook.com 5
 # Main Features
-==> Scraping
-==> Testing for Clickjacking
-==> Testing for SQL injection
-==> Testing for cross-site scripting
-==> Bruteforcing Directory
-==> Testing for Open Redirect
-==> Finding Server Details
+==> Scraping\
+==> Testing for Clickjacking\
+==> Testing for SQL injection\
+==> Testing for cross-site scripting\
+==> Bruteforcing Directory\
+==> Testing for Open Redirect\
+==> Finding Server Details\
 # Installing
-python3 setup/setup.py
+python3 setup/setup.py\
 pip install -r requirements.txt
