@@ -36,7 +36,10 @@ def db():
 def serverDetails():
     if 'server' in h.headers:
         getServer=h.headers['server']
-        print("[-] The site you are searching for vulnerability is using \033[31m"+getServer+"\033[0m Server")
+        print("---------------------------------------")
+        print("      Server      ||     \033[31m"+getServer+"\033[0m")
+        print("---------------------------------------")
+        print("\033[31m"+getServer+"\033[0m Server")
     elif 'Location' in h.headers:
         getServer=h.headers['Location']
         getRedirectedHeader=(requests.head(getServer)).headers
@@ -109,8 +112,6 @@ def sqlinjection():
 def dirsearch(name, counter, threadID):
     wordlist= open("wordlist/wordlist.txt","r")
     m=1
-    print(threadID)
-    print(threading.current_thread())
     # print(threadID)
     # print(counter)
     if threadID==1:
@@ -121,10 +122,9 @@ def dirsearch(name, counter, threadID):
         try:
             bruteUrl=url+i
             bruteRequest=requests.get(bruteUrl)
-            print(threading.current_thread())
             bruteStatus=bruteRequest.status_code
-            print(str(bruteStatus)+"                     "+bruteUrl)
             if bruteStatus==200:
+                print(str(bruteStatus)+"                     "+bruteUrl)
                 sql = "INSERT INTO Vulnerabilities (url,title,description,type,steps,severity) VALUES (%s,%s,%s,%s,%s,%s)"
                 val = []
                 for j in bruteUrl:
@@ -151,7 +151,6 @@ def dirsearchThread():
     wordlistNumber= open("wordlist/wordlist.txt","r")
     t=int(thread)
     number=int(len(wordlistNumber.readlines())/t)
-    print(number)
     for i in range(1,t+1):
         myThread(i,"Thread"+str(i),number).start()
 #    thread1 = myThread(1, "Thread-1", 500)
@@ -160,7 +159,7 @@ def dirsearchThread():
 #    thread2.start()
 def hunterApi():
     getUrl=(url.replace('www.','')).replace('https://','')
-    getEmail=requests.get("https://api.hunter.io/v2/domain-search?domain="+getUrl+"&api_key=3446ddee13548825d57901d705a0c742009cad5d")
+    getEmail=requests.get("https://api.hunter.io/v2/domain-search?domain="+getUrl+"&api_key=2250e2aa3fa45e6cc0b6a15a6c991f5c4a4c3cd8")
     getContent=getEmail.content
     getJson=json.loads(getContent)
     emails=[]
@@ -199,5 +198,6 @@ def main():
     print("_________                   __________                       _____")
 #Directory Bruteforce Using threading
     dirsearchThread()
-    hunterApi()
+    if threading.active_count()==1:
+        hunterApi()
 main()
