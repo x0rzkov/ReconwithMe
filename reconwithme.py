@@ -160,10 +160,11 @@ def dirsearchThread():
 #    thread2.start()
 def hunterApi():
     getUrl=(url.replace('www.','')).replace('https://','')
-    getEmail=requests.get("https://api.hunter.io/v2/domain-search?domain="+getUrl+"&api_key=XXXXXXXXXXXXXXXXXX")
+    getEmail=requests.get("https://api.hunter.io/v2/domain-search?domain="+getUrl+"&api_key=3446ddee13548825d57901d705a0c742009cad5d")
     getContent=getEmail.content
     getJson=json.loads(getContent)
     emails=[]
+    t=[]
     print("Publicly Accessible Emails:")
     for  i in range(len(getJson['data']['emails'])):
         email=getJson['data']['emails'][i]['value']
