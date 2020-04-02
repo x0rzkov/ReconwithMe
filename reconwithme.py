@@ -15,7 +15,7 @@ class myThread (threading.Thread):
       self.counter = counter
    def run(self):
       dirsearch(self.name, self.counter, self.threadID)
-def  variables():
+def variables():
     url=str(sys.argv[1])
     thread=str(sys.argv[2])
     r=requests.get(url); # Send GET request to the URL
@@ -160,7 +160,7 @@ def dirsearchThread():
 #    thread2.start()
 def hunterApi():
     getUrl=(url.replace('www.','')).replace('https://','')
-    getEmail=requests.get("https://api.hunter.io/v2/domain-search?domain="+getUrl+"&api_key=3446ddee13548825d57901d705a0c742009cad5d")
+    getEmail=requests.get("https://api.hunter.io/v2/domain-search?domain="+getUrl+"&api_key=XXXXXXXXXXXXXXXXXX")
     getContent=getEmail.content
     getJson=json.loads(getContent)
     emails=[]
