@@ -15,11 +15,10 @@ class myThread (threading.Thread):
       self.counter = counter
    def run(self):
       dirsearch(self.name, self.counter, self.threadID)
-def variables():
-    url=str(sys.argv[1])
-    thread=str(sys.argv[2])
-    r=requests.get(url); # Send GET request to the URL
-    h=requests.head(url); # Get HTTP Headers
+url=str(sys.argv[1])
+thread=str(sys.argv[2])
+r=requests.get(url); # Send GET request to the URL
+h=requests.head(url); # Get HTTP Headers
 def db():
     global mydb
     global mycursor
@@ -52,12 +51,13 @@ def scrape():
     html = s.decode('ISO-8859-1')
     data = {}
     data['URL']=[]
+    global domain
     domain= (url.replace("www.","")).replace("https://","")
     urls = re.findall('http[s]?://domain(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', html) #http://urlregex.com/
     jsonfile=json.dumps({"url":urls})
     # define the name of the directory to be created
     file=url.replace('/','')
-    path = os.getcwd()+"/"+file
+    path = os.getcwd()+"/"+domain
 
     try:
         os.mkdir(path)
@@ -69,7 +69,7 @@ def scrape():
     f.write(jsonfile)
     f.close()
 def clickjacking():
-    with open('https:nassec.io/urls.json') as json_file:
+    with open(domain+'/urls.json') as json_file:
         d=json.load(json_file)
         clickjacking=[]
         for i in range(len(d['url'])):
@@ -89,7 +89,7 @@ def search(d, lookup):
             if lookup in v:
                 return v
 def openRedirect():
-    with open('https:nassec.io/urls.json') as json_file:
+    with open(domain+'/urls.json') as json_file:
         d=json.load(json_file)
     if search(d, 'return_url'):
         print('test')
@@ -164,7 +164,6 @@ def hunterApi():
     getContent=getEmail.content
     getJson=json.loads(getContent)
     emails=[]
-    t=[]
     print("Publicly Accessible Emails:")
     for  i in range(len(getJson['data']['emails'])):
         email=getJson['data']['emails'][i]['value']
