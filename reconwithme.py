@@ -6,6 +6,8 @@ import os
 import mysql.connector
 import pymysql #mysql database connecting
 import threading
+import dns.resolver #DNSpython to get NS,A,Cname records
+from os import path as paths
 
 class myThread (threading.Thread):
    def __init__(self, threadID, name, counter):
@@ -36,10 +38,17 @@ def db():
 def serverDetails():
     if 'server' in h.headers:
         getServer=h.headers['server']
-        print("---------------------------------------")
-        print("      Server      ||     \033[31m"+getServer+"\033[0m")
-        print("---------------------------------------")
-        print("\033[31m"+getServer+"\033[0m Server")
+        print("          ----------------------------------------------------------")
+        print("          |Server      ||     \033[31m"+getServer+"\033[0m          ")
+        ns = dns.resolver.query('tutorialspoint.com', 'ns')
+        for ipval in ns:
+            print("          ----------------------------------------------------------")
+            print("          |Nameserver  ||     \033[31m"+ipval.to_text()+"\033[0m          ")
+        a = dns.resolver.query('tutorialspoint.com', 'A')
+        for ipval in a:
+            print("          ----------------------------------------------------------")
+            print("          |A Record    ||     \033[31m"+ipval.to_text()+"\033[0m          ")
+            print("          ----------------------------------------------------------")
     elif 'Location' in h.headers:
         getServer=h.headers['Location']
         getRedirectedHeader=(requests.head(getServer)).headers
@@ -55,21 +64,26 @@ def scrape():
     data = {}
     data['URL']=[]
     global domain
-    domain= (url.replace("www.","")).replace("https://","")
-    urls = re.findall('http[s]?://domain(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', html) #http://urlregex.com/
-    jsonfile=json.dumps({"url":urls})
+    domain= ((url.replace("www.","")).replace("https://","")).replace('/','')
+    urls = re.findall('http[s]?://'+re.escape(domain)+'/(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', html) #http://urlregex.com/
+    getJson=json.dumps({"url":urls})
+    json_file=json.loads(getJson)
     # define the name of the directory to be created
     file=url.replace('/','')
     path = os.getcwd()+"/"+domain
-
-    try:
-        os.mkdir(path)
-    except OSError:
-        print ("Creation of the directory %s failed" % path)
-    else:
-        print ("Successfully created the directory %s " % path)
+    if str(paths.exists(domain)):
+        os.system('rm -rf '+domain)
+    os.mkdir(path)
+    writeJson=[]
+    for i in range(len(json_file['url'])):
+        s=re.match(r"(http(s?):)([/|.|\w|\s|-])*\.(?:jpg|gif|png|js|swf)", json_file['url'][i])
+        if s is None:
+            print(json_file['url'][i])
+            writeJson.append(json_file['url'][i])
+    writeJsonFile=json.dumps({"url":writeJson})
+    print(writeJsonFile)
     f = open(path+"/urls.json", "w")
-    f.write(jsonfile)
+    f.write(str(writeJsonFile))
     f.close()
 def clickjacking():
     with open(domain+'/urls.json') as json_file:
@@ -95,7 +109,7 @@ def openRedirect():
     with open(domain+'/urls.json') as json_file:
         d=json.load(json_file)
     if search(d, 'return_url'):
-        print('test')
+        print("fucked found")
 def xss():
     try:
         if h.headers['X-XSS-Protection']=="1":
@@ -104,6 +118,9 @@ def xss():
         print("   \033[31m              [+] This website might be Vulnerable to XSS, furthur testing report will be displayed soon \033[0m\n");
 
 def sqlinjection():
+    with open(domain+'/urls.json') as json_file:
+        d=json.load(json_file)
+
     txt=r.text;
     if 'sql' in txt:
         print("  \033[31m               [+] Vulnerable to SQL injection \033[0m\n");
@@ -123,6 +140,7 @@ def dirsearch(name, counter, threadID):
             bruteUrl=url+i
             bruteRequest=requests.get(bruteUrl)
             bruteStatus=bruteRequest.status_code
+            bruteSize=len(bruteRequest.content)
             if bruteStatus==200:
                 print(str(bruteStatus)+"                     "+bruteUrl)
                 sql = "INSERT INTO Vulnerabilities (url,title,description,type,steps,severity) VALUES (%s,%s,%s,%s,%s,%s)"
@@ -137,8 +155,8 @@ def dirsearch(name, counter, threadID):
             bruteUrl=url+"/"+i
             bruteRequest=requests.get(bruteUrl)
             bruteStatus=bruteRequest.status_code
-            print(str(bruteStatus)+"                     "+bruteUrl)
             if bruteStatus==200:
+                print(str(bruteStatus)+"                     "+bruteUrl)
                 sql = "INSERT INTO Vulnerabilities (url,title,description,type,steps,severity) VALUES (%s,%s,%s,%s,%s,%s)"
                 val = []
                 for j in bruteUrl:
@@ -181,23 +199,24 @@ def main():
                 |_| \_\___|\___\___/|_| |_|\_/\_/ |_|\__|_| |_|_|  |_|\___|
 
 """+"   \033[0m                                         Welcome to ReconwithMe\n                                    \033[33m                    Coded by @evilboyajay\033[0m")
+    serverDetails()
     print("[-] Scraping the URL's and saving it to JSON file")
     db()
     scrape()
-    serverDetails()
-    print("   \033[34m              [+] Scraping Successfull \033[0m\n")
     print("[-] Checking Clickjacking Vulnerbility")
-    clickjacking()
+#    clickjacking()
     print("[-] Checking SQL Injection Vulnerbility")
     sqlinjection()
     print("[-] Checking Javascript Injection Vulnerbility")
     xss()
+    print("[-] Checking Public email is leakage")
+    hunterApi()
+    print("[-] Checking Open  Redirect Vulnerbility")
     openRedirect()
     print("[-] Checking Directory Listing Vulnerbility \n")
-    print("Status                      Directory                        Size")
-    print("_________                   __________                       _____")
+    print("\033[31m Please be patient this will take longer time\033[0m")
+    print("Status                      Directory")
+    print("_________                   __________ ")
 #Directory Bruteforce Using threading
     dirsearchThread()
-    if threading.active_count()==1:
-        hunterApi()
 main()
