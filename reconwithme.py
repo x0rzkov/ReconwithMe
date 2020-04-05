@@ -154,6 +154,14 @@ def sqlinjection():
             sqli_url.append(d['url'][i])
     sqli_url = json.dumps({"url": sqli_url})
     sqli = json.loads(sqli_url)
+    for key, value in sqli.items():
+        for v in value:
+            timebased = v + "-sleep(5)"
+            time_request = requests.get(timebased)
+            resp_time = str(round(time_request.elapsed.total_seconds(), 2))
+            if float(resp_time) > 10:
+                print(timebased)
+                print("          [+] Vulnerable to Time Based SQL Injection\n\033[31m          [-]Payload: -sleep(5)\033[0m\n")
     for i in range(len(sqli['url'])):
         sqli_parse = urlparse(sqli['url'][i])
         query = parse_qs(sqli_parse.query)
