@@ -7,7 +7,7 @@ import mysql.connector
 import threading
 import dns.resolver  # DNS python to get NS,A,Cname records
 from os import path as paths
-from urllib.parse import urlparse, parse_qs # parsing URL
+from urllib.parse import urlparse, parse_qs  # parsing URL
 
 
 class myThread(threading.Thread):
@@ -157,15 +157,54 @@ def sqlinjection():
     for i in range(len(sqli['url'])):
         sqli_parse = urlparse(sqli['url'][i])
         query = parse_qs(sqli_parse.query)
+        query1 = parse_qs(sqli_parse.query)
         sqli_url = sqli_parse._replace(query=None).geturl()
         for j in query:
+            initial_request = requests.get(sqli_url, params=query)
             query[j] = "'"
             sqli_test = requests.get(sqli_url, params=query)
             txt = sqli_test.text
             if 'SQL' in txt:
-                print("  \033[31m               [+] Vulnerable to SQL injection \033[0m\n");
+                print("\033[31m          [-] Checking for Error-Based SQLi \033[0m\n");
+                errorSqli(sqli_url, query1, initial_request)
             else:
-                print(" \033[34m                [+] Prevented from SQL injection \033[0m\n");
+                print("\033[34m          [+] Prevented from SQL injection \033[0m\n");
+
+
+def errorSqli(sqli_url, query, initial_request):
+    for i in query:
+        for key, value in query.items():
+            for v in value:
+                sqli_url1 = sqli_url + "?" + i + "=" + v + " AND 1=1"
+                confirmSqli = requests.get(sqli_url1)
+                if initial_request.text == confirmSqli.text:
+                    query[i] = "1 AND 1=2"
+                    confirmSqli = requests.get(sqli_url, params=query)
+                    if initial_request.text != confirmSqli.text:
+                        print(
+                            "          [+] Vulnerable to Error Based SQL Injection\n\033[31m          [-]Payload: AND 1=1\033[0m\n")
+                        sql = "INSERT INTO Vulnerabilities (url,title,description,type,steps,severity) VALUES (%s,%s,%s,%s,%s,%s)"
+                        val = (url, "[Critical] Error Based SQL Injection",
+                               "Error-based SQLi is an in-band SQL Injection technique that relies on error messages thrown by the database server to obtain information about the structure of the database. In some cases, error-based SQL injection alone is enough for an attacker to enumerate an entire database.",
+                               "SQL Injection",
+                               "1) Go to  " + sqli_url1 + "<br>2) Add ' at the end of the URL you will see SQL error",
+                               "High")
+                        mycursor.execute(sql, val)
+                        mydb.commit()
+                elif initial_request.text != confirmSqli.text:
+                    sqli_url1 = sqli_url + "?" + i + "=" + v + " OR 1=1"
+                    confirmOrSqli = requests.get(sqli_url1)
+                    if confirmSqli.text != confirmOrSqli.text:
+                        print(
+                            "          [+] Vulnerable to Error Based SQL Injection\n\033[31m          [-]Payload: OR 1=1\033[0m\n")
+                        sql = "INSERT INTO Vulnerabilities (url,title,description,type,steps,severity) VALUES (%s,%s,%s,%s,%s,%s)"
+                        val = (url, "[Critical] Error Based SQL Injection",
+                               "Error-based SQLi is an in-band SQL Injection technique that relies on error messages thrown by the database server to obtain information about the structure of the database. In some cases, error-based SQL injection alone is enough for an attacker to enumerate an entire database.",
+                               "SQL Injection",
+                               "1) Go to  " + sqli_url1 + "<br>2) Add ' at the end of the URL you will see SQL error",
+                               "High")
+                        mycursor.execute(sql, val)
+                        mydb.commit()
 
 
 def dirsearch(counter, threadID):
@@ -254,7 +293,7 @@ def main():
     serverDetails()
     print("[-] Scraping the URL's and saving it to JSON file")
     db()
-#    scrape()
+    #    scrape()
     print("[-] Checking Clickjacking Vulnerbility")
     #    clickjacking()
     print("[-] Checking SQL Injection Vulnerbility")
