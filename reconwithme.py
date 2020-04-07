@@ -18,7 +18,7 @@ class myThread(threading.Thread):
         self.counter = counter
 
     def run(self):
-        dirsearch(self.name, self.counter, self.threadID)
+        dirsearch(self.counter, self.threadID)
 
 
 url = str(sys.argv[1])
@@ -75,11 +75,25 @@ def scrape():
     html = s.decode('ISO-8859-1')
     data = {'URL': []}
     global domain
-    domain = ((url.replace("www.", "")).replace("https://", "")).replace('/', '')
-    urls = re.findall(
-        'http[s]?://' + re.escape(domain) + '/(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+',
-        html)  # http://urlregex.com/
-    get_json = json.dumps({"url": urls})
+    domain = (((url.replace("www.", "")).replace("https://", "")).replace('/', '')).replace("http:", "")
+    full_urls=[]
+    urls = re.findall('http[s]?://' + re.escape(domain) + '/(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', html)  # http://urlregex.com/
+    full_urls = full_urls + urls
+    loop = 1
+    while loop == 1:
+        for i in range(len(full_urls)):
+            url_req = requests.get(full_urls[i])
+            url_content = url_req.content
+            response_url = url_content.decode('ISO-8859-1')
+            urlss = re.findall('http[s]?://' + re.escape(domain) + '/(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', response_url)  # http://urlregex.com/
+            for j in range(len(urlss)):
+                if urlss[j] not in full_urls:
+                    full_urls.append(urlss[j])
+                    loop = 1
+                else:
+                    loop = 2
+    print(full_urls)
+    get_json = json.dumps({"url": full_urls})
     json_file = json.loads(get_json)
     # define the name of the directory to be created
     file = url.replace('/', '')
@@ -103,7 +117,6 @@ def clickjacking():
         d = json.load(json_file)
         clickjacking_url = []
         for i in range(len(d['url'])):
-            print(d['url'])
             req_header = requests.head(d['url'][i]);
             try:
                 if req_header.headers['X-Frame-Options'] == "DENY" or "SAMEORIGIN":
@@ -145,7 +158,7 @@ def xss():
 
 
 def sqlinjection():
-    with open('nassec.io/urls.json') as json_file:
+    with open(domain + '/urls.json') as json_file:
         d = json.load(json_file)
     sqli_url = []
     for i in range(len(d['url'])):
@@ -161,7 +174,15 @@ def sqlinjection():
             resp_time = str(round(time_request.elapsed.total_seconds(), 2))
             if float(resp_time) > 10:
                 print(timebased)
-                print("          [+] Vulnerable to Time Based SQL Injection\n\033[31m          [-]Payload: -sleep(5)\033[0m\n")
+                print("          [+] Vulnerable to Time Based SQL Injection\n\033[31m          [-]Payload: "+timebased+"\033[0m\n")
+                sql = "INSERT INTO Vulnerabilities (url,title,description,type,steps,severity) VALUES (%s,%s,%s,%s,%s,%s)"
+                val = (url, "[Critical] Error Based SQL Injection",
+                       "Error-based SQLi is an in-band SQL Injection technique that relies on error messages thrown by the database server to obtain information about the structure of the database. In some cases, error-based SQL injection alone is enough for an attacker to enumerate an entire database.",
+                       "SQL Injection",
+                       "1) Go to  " + timebased + "<br>2) You will notice that it takes more time to load than usual",
+                       "High")
+                mycursor.execute(sql, val)
+                mydb.commit()
     for i in range(len(sqli['url'])):
         sqli_parse = urlparse(sqli['url'][i])
         query = parse_qs(sqli_parse.query)
@@ -183,14 +204,14 @@ def errorSqli(sqli_url, query, initial_request):
     for i in query:
         for key, value in query.items():
             for v in value:
-                sqli_url1 = sqli_url + "?" + i + "=" + v + " AND 1=1"
+                sqli_url1 = sqli_url + "?" + i + "=" + v + "%20AND%201=1"
                 confirmSqli = requests.get(sqli_url1)
                 if initial_request.text == confirmSqli.text:
-                    query[i] = "1 AND 1=2"
+                    query[i] = "%20AND 1=2"
                     confirmSqli = requests.get(sqli_url, params=query)
                     if initial_request.text != confirmSqli.text:
                         print(
-                            "          [+] Vulnerable to Error Based SQL Injection\n\033[31m          [-]Payload: AND 1=1\033[0m\n")
+                            "          [+] Vulnerable to Error Based SQL Injection\n\033[31m          [-]Payload: "+sqli_url1+"\033[0m\n")
                         sql = "INSERT INTO Vulnerabilities (url,title,description,type,steps,severity) VALUES (%s,%s,%s,%s,%s,%s)"
                         val = (url, "[Critical] Error Based SQL Injection",
                                "Error-based SQLi is an in-band SQL Injection technique that relies on error messages thrown by the database server to obtain information about the structure of the database. In some cases, error-based SQL injection alone is enough for an attacker to enumerate an entire database.",
@@ -245,6 +266,7 @@ def dirsearch(counter, threadID):
             brute_url = url + "/" + i
             brute_request = requests.get(brute_url)
             brute_status = brute_request.status_code
+            print(brute_status)
             if brute_status == 200:
                 print(str(brute_status) + "                     " + brute_url)
                 sql = "INSERT INTO Vulnerabilities (url,title,description,type,steps,severity) VALUES (%s,%s,%s,%s,%s,%s)"
@@ -301,17 +323,17 @@ def main():
     serverDetails()
     print("[-] Scraping the URL's and saving it to JSON file")
     db()
-    #    scrape()
+    scrape()
     print("[-] Checking Clickjacking Vulnerbility")
-    #    clickjacking()
+    clickjacking()
     print("[-] Checking SQL Injection Vulnerbility")
     sqlinjection()
     print("[-] Checking Javascript Injection Vulnerbility")
-    #    xss()
+    xss()
     print("[-] Checking Public email is leakage")
-    #    hunterApi()
+    hunterApi()
     print("[-] Checking Open  Redirect Vulnerbility")
-    #    openRedirect()
+    openRedirect()
     print("[-] Checking Directory Listing Vulnerbility \n")
     print("\033[31m Please be patient this will take longer time\033[0m")
     print("Status                      Directory")
@@ -319,7 +341,7 @@ def main():
     # Directory Bruteforce Using threading
 
 
-#    dirsearchThread()
+    dirsearchThread()
 
 
 main()
