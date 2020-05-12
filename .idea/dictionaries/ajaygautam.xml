@@ -9,8 +9,10 @@
       <w>sqlinjection</w>
       <w>timebased</w>
       <w>vulnerbility</w>
+      <w>webcache</w>
       <w>wordlist</w>
       <w>wordlists</w>
+      <w>wordpress</w>
     </words>
   </dictionary>
 </component>

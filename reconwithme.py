@@ -23,6 +23,9 @@ class myThread(threading.Thread):
         dirsearch(self.counter, self.threadID)
 
 
+if len(sys.argv) < 3:
+    print("Please provide the  number of thread and website url like \n python3 reconwithme.py https://facebook.com 5")
+    sys.exit()
 url = str(sys.argv[1])
 thread = str(sys.argv[2])
 r = requests.get(url);  # Send GET request to the URL
@@ -32,6 +35,7 @@ h = requests.head(url);  # Get HTTP Headers
 def db():
     global mydb
     global mycursor
+    global sql
     try:
         mydb = mysql.connector.connect(
             host="localhost",
@@ -40,6 +44,7 @@ def db():
             database="Reconwithme"
         )
         mycursor = mydb.cursor()
+        sql = "INSERT INTO Vulnerabilities (url,title,description,type,steps,severity) VALUES (%s,%s,%s,%s,%s,%s)"
     except:
         print("\033[31m[-] Please Turn on Mysql Database port\033[0m")
         sys.exit()
@@ -83,7 +88,17 @@ def scrape():
     urls = re.findall(
         'http[s]?://' + re.escape(domain) + '/(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+',
         html)  # http://urlregex.com/
+    find_platform(urls)  # checking if the website if WP
     full_urls = full_urls + urls
+    soup = BeautifulSoup(html, "html.parser")
+    add_domain_urls = []
+    for a in soup.findAll('a'):
+        if a.has_attr('href'):
+            if a['href'][0] == '/':
+                add_domain_urls.append(('https://'+domain + a['href']))
+            urls_href = re.findall('http[s]?://' + re.escape(
+                domain) + '/(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', a['href'])
+    full_urls = full_urls + urls_href + list(add_domain_urls)
     loop = 1
     while loop == 1:
         if len(full_urls) == 0:
@@ -102,7 +117,6 @@ def scrape():
                         loop = 1
                     else:
                         loop = 2
-    print(full_urls)
     get_json = json.dumps({"url": full_urls})
     json_file = json.loads(get_json)
     # define the name of the directory to be created
@@ -116,13 +130,92 @@ def scrape():
     os.mkdir(path)
     write_json = []
     for i in range(len(json_file['url'])):
-        s = re.match(r"(http(s?):)([/|.|\w|\s|-])*\.(?:jpg|gif|png|js|swf|css)", json_file['url'][i])
+        s = re.match(r"(http(s?):)([/|.|\w|\s|-])*\.(?:jpg|gif|jpeg|png|js|swf|css)", json_file['url'][i])
         if s is None:
             write_json.append(json_file['url'][i])
-    write_json_file = json.dumps({"url": write_json})
+    seen = set()
+    for x in write_json:  # Removing duplicates from list
+        if x not in seen:
+            seen.add(x)
+    write_json_file = json.dumps({"url": list(seen)})
+    print(write_json_file)
     f = open(path + "/urls.json", "w")
     f.write(str(write_json_file))
     f.close()
+
+
+def find_platform(urls):
+    wp = ["wp-content", "wp-includes", "wp-json", "wp-admin"]
+    react = ["wp-content", "wp-includes", "wp-json", "wp-admin"]
+    for i in urls:
+        if set(wp).intersection(i.split("/")):
+            wordpress()
+            print("The site is made in Wordpress")
+            break
+        elif set(react).intersection(i.split("/")):
+            print
+
+
+def wordpress():
+    wordlist = ['wp-content/uploads/', 'wp-content/plugins/', 'wp-install.php', 'wp-config.php', 'wp-config-sample.php',
+                'wp-includes', 'wp-json']
+    for i in wordlist:
+        vulnerable = requests.get(url + i)
+    if vulnerable.status_code == 200:
+        if i == wordlist[0]:
+            print(url + wordlist[0] + " is opened")
+            val = (url, 'Wordpress wp-content is publicly accessibly',
+                   'Wp-content contains all the files you upload and sometime there is chance to have sensitive files',
+                   'Wordpress Wp-content is opened',
+                   'Go to' + url + wordlist[0], 'Low')
+            mycursor.execute(sql, val)
+            mydb.commit()
+        if i == wordlist[1]:
+            print(url + wordlist[1] + " is opened")
+            val = (url, 'Wordpress wp-plugins is publicly accessibly',
+                   'Wp-plugins contains all the plugins you have installed and if plugins are not updated than attacker can attack your website through vulnerable plugins',
+                   'Wordpress Wp-plugins is opened',
+                   'Go to' + url + wordlist[1], 'Low')
+            mycursor.execute(sql, val)
+            mydb.commit()
+        if i == wordlist[2]:
+            print(url + wordlist[2] + " is opened")
+            val = (url, 'Wordpress wp-install is publicly accessibly',
+                   'Wp-install helps any users to setup wordpress, if the wordpress site you pentesting has not setup wordpress than we can takeover the wordpress website. After take overing the wordpress site attacker can get access to the server too by uploading php files',
+                   'Wordpress Wp-install is opened',
+                   'Go to' + url + wordlist[2], 'High')
+            mycursor.execute(sql, val)
+            mydb.commit()
+        if i == wordlist[3]:
+            print(url + wordlist[3] + " is opened")
+            val = (url, 'Wordpress wp-config is publicly accessibly',
+                   'Wp-config contains sensitive information like database credentials. This should not be accessibly by anyone',
+                   'Wordpress Wp-config is opened',
+                   'Go to' + url + wordlist[3], 'High')
+            mycursor.execute(sql, val)
+            mydb.commit()
+        if i == wordlist[4]:
+            print(url + wordlist[4] + " is opened")
+            val = (url, 'Wordpress wp-config is publicly accessibly',
+                   'Wp-config contains sensitive information like database credentials. This should not be accessibly by anyone',
+                   'Wordpress Wp-config is opened',
+                   'Go to' + url + wordlist[4], 'High')
+            mycursor.execute(sql, val)
+            mydb.commit()
+        if i == wordlist[5]:
+            print(url + wordlist[5] + " is opened")
+            val = (url, 'Wordpress wp-includes is publicly accessibly',
+                   'The web server is configured to display the list of files contained in this directory. As a result of a misconfiguration - end user / attacker able to see content of the folders with systemically important files',
+                   'Wordpress Wp-includes is opened', 'Go to' + url + wordlist[5], 'Medium')
+            mycursor.execute(sql, val)
+            mydb.commit()
+        if i == wordlist[6]:
+            print(url + wordlist[6] + " is opened")
+            val = (url, 'Wordpress wp-json is publicly accessibly',
+                   'Using REST API, we can see all the WordPress users/author with some of their information.',
+                   'Wordpress Wp-json is opened', 'Go to' + url + wordlist[6], 'Medium')
+            mycursor.execute(sql, val)
+            mydb.commit()
 
 
 def clickjacking():
@@ -155,10 +248,33 @@ def search(d, lookup):
 
 
 def openRedirect():
-    with open(domain + '/urls.json') as json_file:
+    with open('nassec.io' + '/urls.json') as json_file:
         d = json.load(json_file)
-    if search(d, 'return_url'):
-        print("URL found")
+    for i in d['url']:
+        parsed = urlparse(i)
+        parameter = parse_qs(parsed.query)
+        for key in parameter.items():
+            if key =='url' or 'return_url' or 'url' or 'path':
+                requests.get()
+def webcache():
+    webcache_url = scraped_urls.url(domain)
+    for i in range(len(webcache_url['url'])):
+        webcache_request_url = requests.get(webcache_url['url'][0])
+        webcache_url_content = webcache_request_url.content
+        cache_url = scraped_urls.getvalue()
+        cache_urli = cache_url + "/test.css"
+        cache_request_url = requests.get(cache_urli)
+        cache_url_content = cache_request_url.content
+        if webcache_url_content == cache_url_content:
+            print("Vulnerable to web cache deception")
+        sql = "INSERT INTO Vulnerabilities (url,title,description,type,steps,severity) VALUES (%s,%s,%s,%s,%s,%s)"
+        val = (url, "Web Cache Deception",
+               "The server is vulnerable to the so called Web Cache Deception Attack. This is often caused by a non-standard server-side setting overriding recommended Cache-Control directives. Due to the cache misconfiguration, an attacker may send a specially crafted link to users of your site, which will result in the leak of sensitive data. When we make someone to click into the css file than instead of css file there profile or any sensitive information can be cached and opened in the attacker browser",
+               "Web Cache Deception",
+               "1) Go to  " + cache_urli + "<br>2) When you click above URL, you will see the content of directory not a css file <br> 3) At the same time if other users open this URL they will see the directory content.",
+               "<span style='color: red ;'>High</b></span>")
+        mycursor.execute(sql, val)
+        mydb.commit()
 
 
 def xss():
@@ -234,7 +350,7 @@ def sqlinjection():
                        "Error-based SQLi is an in-band SQL Injection technique that relies on error messages thrown by the database server to obtain information about the structure of the database. In some cases, error-based SQL injection alone is enough for an attacker to enumerate an entire database.",
                        "SQL Injection",
                        "1) Go to  " + timebased + "<br>2) You will notice that it takes more time to load than usual",
-                       "High")
+                       "<span style='color: red ;'>High</span>")
                 mycursor.execute(sql, val)
                 mydb.commit()
     for i in range(len(sqli['url'])):
@@ -304,7 +420,7 @@ def dirsearch(counter, threadID):
             brute_url = url + i
             brute_request = requests.get(brute_url)
             brute_status = brute_request.status_code
-            print("test")
+
             if brute_status == 200:
                 print(str(brute_status) + "                     " + brute_url)
                 sql = "INSERT INTO Vulnerabilities (url,title,description,type,steps,severity) VALUES (%s,%s,%s,%s,%s,%s)"
@@ -313,7 +429,7 @@ def dirsearch(counter, threadID):
                     base = (url, 'Directory Opened',
                             'Directory is opened due to which there is high probability of information disclosure',
                             'Directory Listing',
-                            'Go to ' + brute_url, 'Medium')
+                            'Go to ' + brute_url, '<span style=\'color: yellow ;\'>Medium</span>')
                     val.append(base)
                 insert = list(dict.fromkeys(val))
                 mycursor.executemany(sql, insert)
@@ -330,7 +446,8 @@ def dirsearch(counter, threadID):
                     base = (url, 'Directory Opened',
                             'Directory is opened due to which there is high probability of information disclosure',
                             'Directory Listing',
-                            '1) Go to ' + brute_url+'<br>2) You will see you can access file or directory', 'Medium')
+                            '1) Go to ' + brute_url + '<br>2) You will see you can access file or directory',
+                            '<span style=\'color: yellow ;\'>Medium</span>Medium</span>')
                     val.append(base)
                 insert = list(dict.fromkeys(val))
                 mycursor.executemany(sql, insert)
@@ -364,14 +481,16 @@ def hunterApi():
         os.system('proxychains4 python3 Tor/tor.py' + " " + email + "|sed -n -e '/^1$/,/^61$/p'")
         listEmail = list(email.split(" "))
         emails = emails + listEmail
-    sql = "INSERT INTO Vulnerabilities (url,title,description,type,steps,severity) VALUES (%s,%s,%s,%s,%s,%s)"
-    val = (url, 'Email is publicly available',
-           'Your emails are publicly accessible from search engines. Spammer can get your email for spamming as well as if your email has suffered from any database leakage then attack can access your password too, if not changed',
-           'Email Disclosure',
-           '1) Go to hunter.io <br>2)Search your company name <br>3) Your email will be displayed <span style="color: red ; text-align: justify;"><br>' + str(emails) + '</span>', 'Low')
-    mycursor.execute(sql, val)
-    mydb.commit()
-    # Checking Emails over Tor
+    if len(emails) != 0:
+        sql = "INSERT INTO Vulnerabilities (url,title,description,type,steps,severity) VALUES (%s,%s,%s,%s,%s,%s)"
+        val = (url, 'Email is publicly available',
+               'Your emails are publicly accessible from search engines. Spammer can get your email for spamming as well as if your email has suffered from any database leakage then attack can access your password too, if not changed',
+               'Email Disclosure',
+               '1) Go to hunter.io <br>2)Search your company name <br>3) Your email will be displayed <span style="color: red ; text-align: justify;"><br>' + str(
+                   emails) + '</span>', 'Low')
+        mycursor.execute(sql, val)
+        mydb.commit()
+        # Checking Emails over Tor
 
 
 def main():
@@ -384,26 +503,30 @@ def main():
                 |_| \_\___|\___\___/|_| |_|\_/\_/ |_|\__|_| |_|_|  |_|\___|
 
 """ + "   \033[0m                                         Welcome to ReconwithMe\n                                    \033[33m                    Coded by @evilboyajay\033[0m")
-    serverDetails()
+    print(
+        "\033[31mThis tool is developed in order to prevent cyber attacks and using this tool unintentionally for criminal activities is not prohibited. You will be liable of any harm caused by this tool.\033[33m \n")
+    #serverDetails()
     print("[-] Scraping the URL's and saving it to JSON file")
-    db()
-    scrape()
+    #db()
+    #scrape()
     print("[-] Checking Clickjacking Vulnerbility")
-    clickjacking()
+    #clickjacking()
     print("[-] Checking SQL Injection Vulnerbility")
-    sqlinjection()
+    #sqlinjection()
     print("[-] Checking Javascript Injection Vulnerbility")
-    xss()
+    #xss()
     print("[-] Checking Public email is leakage")
-    hunterApi()
+    #hunterApi()
     print("[-] Checking Open  Redirect Vulnerbility")
     openRedirect()
     print("[-] Checking Directory Listing Vulnerbility \n")
     print("\033[31m Please be patient this will take longer time\033[0m")
     print("Status                      Directory")
     print("_________                   __________ ")
-    # Directory Bruteforce Using threading
-    dirsearchThread()
+    #    Directory Bruteforce Using threading
+    #dirsearchThread()
+    #webcache()
+    print("\033[1;35;48m Vulnerability Scan Successful")
 
 
 main()

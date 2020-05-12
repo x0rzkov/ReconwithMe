@@ -1,4 +1,0 @@
-test
-wp-admin
-wp-contents
-wp-install.php
