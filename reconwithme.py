@@ -28,8 +28,9 @@ if len(sys.argv) < 3:
     sys.exit()
 url = str(sys.argv[1])
 thread = str(sys.argv[2])
-r = requests.get(url);  # Send GET request to the URL
-h = requests.head(url);  # Get HTTP Headers
+r = requests.get(url)  # Send GET request to the URL
+h = requests.head(url)  # Get HTTP Headers
+domain = (((url.replace("www.", "")).replace("https://", "")).replace('/', '')).replace("http:", "")
 
 
 def db():
@@ -55,12 +56,12 @@ def serverDetails():
         get_server = h.headers['server']
         print("          ----------------------------------------------------------")
         print("          |Server      ||     \033[31m" + get_server + "\033[0m          ")
-        ns = dns.resolver.query('tutorialspoint.com', 'ns')
+        ns = dns.resolver.query(domain, 'ns')
         for ipval in ns:
             print("          ----------------------------------------------------------")
             print("          |Nameserver  ||     \033[31m" + ipval.to_text() + "\033[0m          ")
 
-        a = dns.resolver.query('tutorialspoint.com', 'A')
+        a = dns.resolver.query(domain, 'A')
         for ipval in a:
             print("          ----------------------------------------------------------")
             print("          |A Record    ||     \033[31m" + ipval.to_text() + "\033[0m          ")
@@ -82,8 +83,6 @@ def scrape():
     s = r.content
     html = s.decode('ISO-8859-1')
     data = {'URL': []}
-    global domain
-    domain = (((url.replace("www.", "")).replace("https://", "")).replace('/', '')).replace("http:", "")
     full_urls = []
     urls = re.findall(
         'http[s]?://' + re.escape(domain) + '/(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+',
@@ -95,7 +94,7 @@ def scrape():
     for a in soup.findAll('a'):
         if a.has_attr('href'):
             if a['href'][0] == '/':
-                add_domain_urls.append(('https://'+domain + a['href']))
+                add_domain_urls.append(('https://' + domain + a['href']))
             urls_href = re.findall('http[s]?://' + re.escape(
                 domain) + '/(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', a['href'])
     full_urls = full_urls + urls_href + list(add_domain_urls)
@@ -138,7 +137,6 @@ def scrape():
         if x not in seen:
             seen.add(x)
     write_json_file = json.dumps({"url": list(seen)})
-    print(write_json_file)
     f = open(path + "/urls.json", "w")
     f.write(str(write_json_file))
     f.close()
@@ -150,94 +148,99 @@ def find_platform(urls):
     for i in urls:
         if set(wp).intersection(i.split("/")):
             wordpress()
-            print("The site is made in Wordpress")
             break
         elif set(react).intersection(i.split("/")):
-            print
+            print("OnGoing Development")
 
 
 def wordpress():
     wordlist = ['wp-content/uploads/', 'wp-content/plugins/', 'wp-install.php', 'wp-config.php', 'wp-config-sample.php',
                 'wp-includes', 'wp-json']
     for i in wordlist:
-        vulnerable = requests.get(url + i)
+        try:
+            vulnerable = requests.get(url + i)
+            vulnerable_url = url + i
+        except:
+            vulnerable = requests.get(url + "/" + i)
+            vulnerable_url = url + "/" + i
     if vulnerable.status_code == 200:
+        print("\033[31m                  [+] Found open directory at \033[0m" + vulnerable_url)
         if i == wordlist[0]:
-            print(url + wordlist[0] + " is opened")
             val = (url, 'Wordpress wp-content is publicly accessibly',
                    'Wp-content contains all the files you upload and sometime there is chance to have sensitive files',
                    'Wordpress Wp-content is opened',
-                   'Go to' + url + wordlist[0], 'Low')
+                   'Go to' + vulnerable_url, 'Low')
             mycursor.execute(sql, val)
             mydb.commit()
         if i == wordlist[1]:
-            print(url + wordlist[1] + " is opened")
-            val = (url, 'Wordpress wp-plugins is publicly accessibly',
-                   'Wp-plugins contains all the plugins you have installed and if plugins are not updated than attacker can attack your website through vulnerable plugins',
-                   'Wordpress Wp-plugins is opened',
-                   'Go to' + url + wordlist[1], 'Low')
+            val = (url, 'Wordpress wp-content is publicly accessibly',
+                   'Wp-content contains all the files you upload and sometime there is chance to have sensitive files',
+                   'Wordpress Wp-content is opened',
+                   'Go to' + vulnerable_url, 'Low')
             mycursor.execute(sql, val)
             mydb.commit()
         if i == wordlist[2]:
-            print(url + wordlist[2] + " is opened")
             val = (url, 'Wordpress wp-install is publicly accessibly',
                    'Wp-install helps any users to setup wordpress, if the wordpress site you pentesting has not setup wordpress than we can takeover the wordpress website. After take overing the wordpress site attacker can get access to the server too by uploading php files',
                    'Wordpress Wp-install is opened',
-                   'Go to' + url + wordlist[2], 'High')
+                   'Go to' + vulnerable_url, 'High')
             mycursor.execute(sql, val)
             mydb.commit()
         if i == wordlist[3]:
-            print(url + wordlist[3] + " is opened")
             val = (url, 'Wordpress wp-config is publicly accessibly',
                    'Wp-config contains sensitive information like database credentials. This should not be accessibly by anyone',
                    'Wordpress Wp-config is opened',
-                   'Go to' + url + wordlist[3], 'High')
+                   'Go to' + vulnerable_url, 'High')
             mycursor.execute(sql, val)
             mydb.commit()
         if i == wordlist[4]:
-            print(url + wordlist[4] + " is opened")
             val = (url, 'Wordpress wp-config is publicly accessibly',
                    'Wp-config contains sensitive information like database credentials. This should not be accessibly by anyone',
                    'Wordpress Wp-config is opened',
-                   'Go to' + url + wordlist[4], 'High')
+                   'Go to' + vulnerable_url, 'High')
             mycursor.execute(sql, val)
             mydb.commit()
         if i == wordlist[5]:
-            print(url + wordlist[5] + " is opened")
             val = (url, 'Wordpress wp-includes is publicly accessibly',
                    'The web server is configured to display the list of files contained in this directory. As a result of a misconfiguration - end user / attacker able to see content of the folders with systemically important files',
-                   'Wordpress Wp-includes is opened', 'Go to' + url + wordlist[5], 'Medium')
+                   'Wordpress Wp-includes is opened', 'Go to' + vulnerable_url + wordlist[5], 'Medium')
             mycursor.execute(sql, val)
             mydb.commit()
         if i == wordlist[6]:
-            print(url + wordlist[6] + " is opened")
-            val = (url, 'Wordpress wp-json is publicly accessibly',
+            val = (vulnerable_url, 'Wordpress wp-json is publicly accessibly',
                    'Using REST API, we can see all the WordPress users/author with some of their information.',
-                   'Wordpress Wp-json is opened', 'Go to' + url + wordlist[6], 'Medium')
+                   'Wordpress Wp-json is opened', 'Go to' + vulnerable_url + wordlist[6], 'Medium')
             mycursor.execute(sql, val)
             mydb.commit()
+    print("[-] The site is made in Wordpress")
 
 
 def clickjacking():
     with open(domain + '/urls.json') as json_file:
         d = json.load(json_file)
         clickjacking_url = []
+        clickjacking_prevented = []
         for i in range(len(d['url'])):
             req_header = requests.head(d['url'][i]);
             try:
                 if req_header.headers['X-Frame-Options'] == "DENY" or "SAMEORIGIN":
-                    print("  \033[34m               [+] Prevented from Clickjacking \033[0m \n");
+                    clickjacking_prevented.append(d['url'][i])
             except:
                 clickjacking_url.append(d['url'][i])
-                print("  \033[31m                [+] Vulnerable to Clickjacking \033[0m\n");
-                sql = "INSERT INTO Vulnerabilities (url,title,description,type,steps,severity) VALUES (%s,%s,%s,%s,%s,%s)"
-                val = (url, 'Clickjacking Vulnerability',
-                       'Clickjacking is a malicious technique of tricking a user into clicking on something different from what the user perceives, thus potentially revealing confidential information or allowing others to take control of their computer while clicking on seemingly innocuous objects, including web pages',
-                       'Clickjacking',
-                       '1) Make a HTML file like this <br> &lt;html&gt;<br>&lt;iframe src="' + url + '"&gt;<br>&lt;html&gt; <br> 2) Open html file then it will be loaded in iframe  automatically 3) You can change the url to any below url' + str(
-                           clickjacking_url), 'Medium')
-                mycursor.execute(sql, val)
-                mydb.commit()
+        if len(clickjacking_url) > 1:
+            print("  \033[31m                [+] " + str(
+                len(clickjacking_url)) + " were found vulnerable to clickjacking \033[0m\n");
+            val = (url, 'Clickjacking Vulnerability',
+                   'Clickjacking is a malicious technique of tricking a user into clicking on something different from what the user perceives, thus potentially revealing confidential information or allowing others to take control of their computer while clicking on seemingly innocuous objects, including web pages',
+                   'Clickjacking',
+                   '1) Make a HTML file like this <br> &lt;html&gt;<br>&lt;iframe src="' + url + '"&gt;<br>&lt;html&gt; <br> 2) Open html file then it will be loaded in iframe  automatically <br>3) You can change the url to any below url<br>' + (
+                       ((str(
+                           clickjacking_url)).replace(',', '<br>')).replace('\'', '')).replace('[', ''), 'Medium')
+            mycursor.execute(sql, val)
+            mydb.commit()
+        if len(clickjacking_prevented) > 1:
+            print("  \033[31m                [+] " + str(
+                len(clickjacking_prevented)) + " url's were prevented clickjacking \033[0m\n");
 
 
 def search(d, lookup):
@@ -248,14 +251,62 @@ def search(d, lookup):
 
 
 def openRedirect():
-    with open('nassec.io' + '/urls.json') as json_file:
+    with open(domain + '/urls.json') as json_file:
         d = json.load(json_file)
-    for i in d['url']:
-        parsed = urlparse(i)
+    for i in range(len(d['url'])):
+        parsed = urlparse(d['url'][i])
         parameter = parse_qs(parsed.query)
-        for key in parameter.items():
-            if key =='url' or 'return_url' or 'url' or 'path':
-                requests.get()
+        for key, value in parameter.items():
+            if key == 'url':
+                vulnerable = requests.head(
+                    parsed.scheme + "://" + parsed.netloc + parsed.path + "?" + "url=https://google.com")
+                if vulnerable.status_code == 302:
+                    print("\n\033[31m          [+] Vulnerable to Open redirect\033[0m")
+                    val = (url, 'Open Redirect at ' + d['url'][i],
+                           'Open redirection vulnerabilities arise when an application incorporates user-controllable data into the target of a redirection in an unsafe way. An attacker can construct a URL within the application that causes a redirection to an arbitrary external domain. This behavior can be leveraged to facilitate phishing attacks against users of the application. The ability to use an authentic application URL, targeting the correct domain and with a valid SSL certificate (if SSL is used), lends credibility to the phishing attack because many users, even if they verify these features, will not notice the subsequent redirection to a different domain.',
+                           'Open Redirect',
+                           '1) Go to ' + parsed.scheme + '://' + parsed.netloc + parsed.path + '?' + 'url=https://google.com <br>2) This will redirect you to google.com',
+                           'Medium')
+                    mycursor.execute(sql, val)
+                    mydb.commit()
+            if key == 'return_url':
+                vulnerable = requests.head(
+                    parsed.scheme + "://" + parsed.netloc + parsed.path + "?" + "return_url=https://google.com")
+                if vulnerable.status_code == 302:
+                    print("\n\033[31m          [+] Vulnerable to Open redirect\033[0m")
+                    val = (url, 'Open Redirect at ' + d['url'][i],
+                           'Open redirection vulnerabilities arise when an application incorporates user-controllable data into the target of a redirection in an unsafe way. An attacker can construct a URL within the application that causes a redirection to an arbitrary external domain. This behavior can be leveraged to facilitate phishing attacks against users of the application. The ability to use an authentic application URL, targeting the correct domain and with a valid SSL certificate (if SSL is used), lends credibility to the phishing attack because many users, even if they verify these features, will not notice the subsequent redirection to a different domain.',
+                           'Open Redirect',
+                           '1) Go to ' + parsed.scheme + '://' + parsed.netloc + parsed.path + '?' + 'return_url=https://google.com <br>2) This will redirect you to google.com',
+                           'Medium')
+                    mycursor.execute(sql, val)
+                    mydb.commit()
+            if key == 'path':
+                vulnerable = requests.head(
+                    parsed.scheme + "://" + parsed.netloc + parsed.path + "?" + "path=https://google.com")
+                if vulnerable.status_code == 302:
+                    print("\n\033[31m          [+] Vulnerable to Open redirect\033[0m")
+                    val = (url, 'Open Redirect at ' + d['url'][i],
+                           'Open redirection vulnerabilities arise when an application incorporates user-controllable data into the target of a redirection in an unsafe way. An attacker can construct a URL within the application that causes a redirection to an arbitrary external domain. This behavior can be leveraged to facilitate phishing attacks against users of the application. The ability to use an authentic application URL, targeting the correct domain and with a valid SSL certificate (if SSL is used), lends credibility to the phishing attack because many users, even if they verify these features, will not notice the subsequent redirection to a different domain.',
+                           'Open Redirect',
+                           '1) Go to ' + parsed.scheme + '://' + parsed.netloc + parsed.path + '?' + 'path=https://google.com <br>2) This will redirect you to google.com',
+                           'Medium')
+                    mycursor.execute(sql, val)
+                    mydb.commit()
+            if key == 'location':
+                vulnerable = requests.head(
+                    parsed.scheme + "://" + parsed.netloc + parsed.path + "?" + "location=https://google.com")
+                if vulnerable.status_code == 302:
+                    print("\n\033[31m          [+] Vulnerable to Open redirect\033[0m")
+                    val = (url, 'Open Redirect at ' + d['url'][i],
+                           'Open redirection vulnerabilities arise when an application incorporates user-controllable data into the target of a redirection in an unsafe way. An attacker can construct a URL within the application that causes a redirection to an arbitrary external domain. This behavior can be leveraged to facilitate phishing attacks against users of the application. The ability to use an authentic application URL, targeting the correct domain and with a valid SSL certificate (if SSL is used), lends credibility to the phishing attack because many users, even if they verify these features, will not notice the subsequent redirection to a different domain.',
+                           'Open Redirect',
+                           '1) Go to ' + parsed.scheme + '://' + parsed.netloc + parsed.path + '?' + 'location=https://google.com <br>2) This will redirect you to google.com',
+                           'Medium')
+                    mycursor.execute(sql, val)
+                    mydb.commit()
+
+
 def webcache():
     webcache_url = scraped_urls.url(domain)
     for i in range(len(webcache_url['url'])):
@@ -281,16 +332,23 @@ def xss():
     xss_urls = scraped_urls.url(domain)
     xss_parameter_url = sqli_xss(xss_urls)
     xss_parameter_url = json.loads(xss_parameter_url)
+    not_vulnerable_url = []
+    might_vulnerable_url = []
     for i in range(len(xss_parameter_url['url'])):
         xss_request = requests.get(xss_urls['url'][i])
         xss_request_headers = xss_request.headers
         if 'X-XSS-Protection' in xss_request_headers:
             if xss_request_headers['X-XSS-Protection'] == 1 in xss_urls['url']:
+                not_vulnerable_url.append(xss_urls['url'][i])
                 print(" \033[34m                 [+] Prevented from XSS \033[0m \n");
         else:
-            print(
-                "   \033[34m             [+] This parameter might be Vulnerable to XSS, furthur testing report will be displayed soon \033[0m");
-    for key, value in xss_urls.items():
+            might_vulnerable_url.append(xss_urls['url'][i])
+    if len(might_vulnerable_url) > 1:
+        print(
+            "   \033[34m             [+] This website might be Vulnerable to XSS \033[0m");
+    if len(not_vulnerable_url) > 1:
+        print(" \033[34m                 [+] Prevented from XSS, X-XSS-Protection Header Used\033[0m \n");
+    for key, value in xss_parameter_url.items():
         for v in value:
             xss_payload = v + "\"><script>alert(0)</script>"
             xss_database = v + "\"&gt;&lt;script&gt;alert(0)&lt;/script&gt;"
@@ -298,22 +356,25 @@ def xss():
 
 
 def img_xss(xss_database, xss_payload):
-    xss_check = requests.get(xss_payload)
-    xss_source_check = xss_check.content
-    soup = BeautifulSoup(xss_source_check, 'html.parser')
-    confirm_script_xss = soup.find_all("script")
-    for x in confirm_script_xss:
-        if x.text.strip() == "alert(0)":
-            print(" \033[31m               [+] Vulnerable to XSS \033[0m")
-            print("                        Payload: " + xss_payload)
-            sql = "INSERT INTO Vulnerabilities (url,title,description,type,steps,severity) VALUES (%s,%s,%s,%s,%s,%s)"
-            val = (url, "<span style='color: red ;'><b>Reflected</b></span> Xss at " + xss_database,
-                   "A reflected XSS (or also called a non-persistent XSS attack) is a specific type of XSS whose malicious script bounces off of another website to the victim's browser. It is passed in the query, typically, in the URL. It makes exploitation as easy as tricking a user to click on a link",
-                   "XSS",
-                   "1) Go to  " + xss_database + "<br>2) When you click above URL, xss will be fired ",
-                   "<span style='color: red ;'>High</b></span>")
-            mycursor.execute(sql, val)
-            mydb.commit()
+    try:
+        xss_check = requests.get(xss_payload)
+        xss_source_check = xss_check.content
+        soup = BeautifulSoup(xss_source_check, 'html.parser')
+        confirm_script_xss = soup.find_all("script")
+        for x in confirm_script_xss:
+            if x.text.strip() == "alert(0)":
+                print(" \033[31m               [+] Vulnerable to XSS \033[0m")
+                print("                        Payload: " + xss_payload)
+                sql = "INSERT INTO Vulnerabilities (url,title,description,type,steps,severity) VALUES (%s,%s,%s,%s,%s,%s)"
+                val = (url, "<span style='color: red ;'><b>Reflected</b></span> Xss at " + xss_database,
+                       "A reflected XSS (or also called a non-persistent XSS attack) is a specific type of XSS whose malicious script bounces off of another website to the victim's browser. It is passed in the query, typically, in the URL. It makes exploitation as easy as tricking a user to click on a link",
+                       "XSS",
+                       "1) Go to  " + xss_database + "<br>2) When you click above URL, xss will be fired ",
+                       "<span style='color: red ;'>High</b></span>")
+                mycursor.execute(sql, val)
+                mydb.commit()
+    except:
+        print("Ignoring because of redirection")  # Throws error if there is redirect url in parameter
 
 
 def sqli_xss(d):
@@ -339,20 +400,23 @@ def sqlinjection():
     for key, value in sqli.items():
         for v in value:
             timebased = v + "-sleep(5)"
-            time_request = requests.get(timebased)
-            resp_time = str(round(time_request.elapsed.total_seconds(), 2))
-            if float(resp_time) > 10:
-                print(timebased)
-                print(
-                    "          [+] Vulnerable to Time Based SQL Injection\n\033[31m          [-]Payload: " + timebased + "\033[0m\n")
-                sql = "INSERT INTO Vulnerabilities (url,title,description,type,steps,severity) VALUES (%s,%s,%s,%s,%s,%s)"
-                val = (url, "[<span style='color: red ;'><b>[Critical]</b></span> Error Based SQL Injection",
-                       "Error-based SQLi is an in-band SQL Injection technique that relies on error messages thrown by the database server to obtain information about the structure of the database. In some cases, error-based SQL injection alone is enough for an attacker to enumerate an entire database.",
-                       "SQL Injection",
-                       "1) Go to  " + timebased + "<br>2) You will notice that it takes more time to load than usual",
-                       "<span style='color: red ;'>High</span>")
-                mycursor.execute(sql, val)
-                mydb.commit()
+            try:
+                time_request = requests.get(timebased)
+                resp_time = str(round(time_request.elapsed.total_seconds(), 2))
+                if float(resp_time) > 10:
+                    print(timebased)
+                    print(
+                        "          [+] Vulnerable to Time Based SQL Injection\n\033[31m          [-]Payload: " + timebased + "\033[0m\n")
+                    val = (url, "[<span style='color: red ;'><b>[Critical]</b></span> Error Based SQL Injection",
+                           "Error-based SQLi is an in-band SQL Injection technique that relies on error messages thrown by the database server to obtain information about the structure of the database. In some cases, error-based SQL injection alone is enough for an attacker to enumerate an entire database.",
+                           "SQL Injection",
+                           "1) Go to  " + timebased + "<br>2) You will notice that it takes more time to load than usual",
+                           "<span style='color: red ;'>High</span>")
+                    mycursor.execute(sql, val)
+                    mydb.commit()
+            except:
+                print("Ignoring this because of open redirect")
+    prevented = []
     for i in range(len(sqli['url'])):
         sqli_parse = urlparse(sqli['url'][i])
         query = parse_qs(sqli_parse.query)
@@ -367,7 +431,9 @@ def sqlinjection():
                 print("\033[31m          [-] Checking for Error-Based SQLi \033[0m\n");
                 errorSqli(sqli_url, query1, initial_request)
             else:
-                print("\033[34m          [+] Prevented from SQL injection \033[0m\n");
+                prevented.append(sqli['url'][i])
+    if len(prevented) > 1:
+        print("\033[34m          [+] Prevented from SQL injection \033[0m\n");
 
 
 def errorSqli(sqli_url, query, initial_request):
@@ -382,7 +448,6 @@ def errorSqli(sqli_url, query, initial_request):
                     if initial_request.text != confirmSqli.text:
                         print(
                             "          [+] Vulnerable to Error Based SQL Injection\n\033[31m          [-]Payload: " + sqli_url1 + "\033[0m\n")
-                        sql = "INSERT INTO Vulnerabilities (url,title,description,type,steps,severity) VALUES (%s,%s,%s,%s,%s,%s)"
                         val = (url, "[Critical] Error Based SQL Injection",
                                "Error-based SQLi is an in-band SQL Injection technique that relies on error messages thrown by the database server to obtain information about the structure of the database. In some cases, error-based SQL injection alone is enough for an attacker to enumerate an entire database.",
                                "SQL Injection",
@@ -396,7 +461,6 @@ def errorSqli(sqli_url, query, initial_request):
                     if confirmSqli.text != confirmOrSqli.text:
                         print(
                             "          [+] Vulnerable to Error Based SQL Injection\n\033[31m          [-]Payload: OR 1=1\033[0m\n")
-                        sql = "INSERT INTO Vulnerabilities (url,title,description,type,steps,severity) VALUES (%s,%s,%s,%s,%s,%s)"
                         val = (url, "[Critical] Error Based SQL Injection",
                                "Error-based SQLi is an in-band SQL Injection technique that relies on error messages thrown by the database server to obtain information about the structure of the database. In some cases, error-based SQL injection alone is enough for an attacker to enumerate an entire database.",
                                "SQL Injection",
@@ -418,40 +482,23 @@ def dirsearch(counter, threadID):
     for i in wordlists:
         try:
             brute_url = url + i
-            brute_request = requests.get(brute_url)
-            brute_status = brute_request.status_code
-
-            if brute_status == 200:
-                print(str(brute_status) + "                     " + brute_url)
-                sql = "INSERT INTO Vulnerabilities (url,title,description,type,steps,severity) VALUES (%s,%s,%s,%s,%s,%s)"
-                val = []
-                for j in brute_url:
-                    base = (url, 'Directory Opened',
-                            'Directory is opened due to which there is high probability of information disclosure',
-                            'Directory Listing',
-                            'Go to ' + brute_url, '<span style=\'color: yellow ;\'>Medium</span>')
-                    val.append(base)
-                insert = list(dict.fromkeys(val))
-                mycursor.executemany(sql, insert)
-                mydb.commit()
         except:
             brute_url = url + "/" + i
-            brute_request = requests.get(brute_url)
-            brute_status = brute_request.status_code
-            if brute_status == 200:
-                print(str(brute_status) + "                     " + brute_url)
-                sql = "INSERT INTO Vulnerabilities (url,title,description,type,steps,severity) VALUES (%s,%s,%s,%s,%s,%s)"
-                val = []
-                for j in brute_url:
-                    base = (url, 'Directory Opened',
-                            'Directory is opened due to which there is high probability of information disclosure',
-                            'Directory Listing',
-                            '1) Go to ' + brute_url + '<br>2) You will see you can access file or directory',
-                            '<span style=\'color: yellow ;\'>Medium</span>Medium</span>')
-                    val.append(base)
-                insert = list(dict.fromkeys(val))
-                mycursor.executemany(sql, insert)
-                mydb.commit()
+        brute_request = requests.head(brute_url)
+        brute_status = brute_request.status_code
+
+        if brute_status == 200:
+            print(str(brute_status) + "                     " + brute_url)
+            val = []
+            for j in brute_url:
+                base = (url, 'Directory Opened',
+                        'Directory is opened due to which there is high probability of information disclosure',
+                        'Directory Listing',
+                        'Go to ' + brute_url, '<span style=\'color: yellow ;\'>Medium</span>')
+                val.append(base)
+            insert = list(dict.fromkeys(val))
+            mycursor.executemany(sql, insert)
+            mydb.commit()
 
 
 def dirsearchThread():
@@ -469,7 +516,7 @@ def dirsearchThread():
 def hunterApi():
     getUrl = (url.replace('www.', '')).replace('https://', '')
     getEmail = requests.get(
-        "https://api.hunter.io/v2/domain-search?domain=" + getUrl + "&api_key=2250e2aa3fa45e6cc0b6a15a6c991f5c4a4c3cd8")
+        "https://api.hunter.io/v2/domain-search?domain=" + getUrl + "&api_key=2250e2aa3fa45e6cc0b6a15a6c991f5c4a4c3cd8")  # This is in development mode and this is supposed to be deleted when development is completed
     getContent = getEmail.content
     getJson = json.loads(getContent)
     emails = []
@@ -482,7 +529,6 @@ def hunterApi():
         listEmail = list(email.split(" "))
         emails = emails + listEmail
     if len(emails) != 0:
-        sql = "INSERT INTO Vulnerabilities (url,title,description,type,steps,severity) VALUES (%s,%s,%s,%s,%s,%s)"
         val = (url, 'Email is publicly available',
                'Your emails are publicly accessible from search engines. Spammer can get your email for spamming as well as if your email has suffered from any database leakage then attack can access your password too, if not changed',
                'Email Disclosure',
@@ -505,18 +551,18 @@ def main():
 """ + "   \033[0m                                         Welcome to ReconwithMe\n                                    \033[33m                    Coded by @evilboyajay\033[0m")
     print(
         "\033[31mThis tool is developed in order to prevent cyber attacks and using this tool unintentionally for criminal activities is not prohibited. You will be liable of any harm caused by this tool.\033[33m \n")
-    #serverDetails()
+    serverDetails()
     print("[-] Scraping the URL's and saving it to JSON file")
-    #db()
-    #scrape()
+    db()
+    scrape()
     print("[-] Checking Clickjacking Vulnerbility")
-    #clickjacking()
+    clickjacking()
     print("[-] Checking SQL Injection Vulnerbility")
-    #sqlinjection()
+    sqlinjection()
     print("[-] Checking Javascript Injection Vulnerbility")
-    #xss()
+    xss()
     print("[-] Checking Public email is leakage")
-    #hunterApi()
+    hunterApi()
     print("[-] Checking Open  Redirect Vulnerbility")
     openRedirect()
     print("[-] Checking Directory Listing Vulnerbility \n")
@@ -524,8 +570,8 @@ def main():
     print("Status                      Directory")
     print("_________                   __________ ")
     #    Directory Bruteforce Using threading
-    #dirsearchThread()
-    #webcache()
+    dirsearchThread()
+    webcache()
     print("\033[1;35;48m Vulnerability Scan Successful")
 
 
