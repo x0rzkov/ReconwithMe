@@ -516,7 +516,7 @@ def dirsearchThread():
 def hunterApi():
     getUrl = (url.replace('www.', '')).replace('https://', '')
     getEmail = requests.get(
-        "https://api.hunter.io/v2/domain-search?domain=" + getUrl + "&api_key=2250e2aa3fa45e6cc0b6a15a6c991f5c4a4c3cd8")  # This is in development mode and this is supposed to be deleted when development is completed
+        "https://api.hunter.io/v2/domain-search?domain=" + getUrl + "&api_key=${{ secrets.EMAIL_HUNTER_API }}")  # This is in development mode and this is supposed to be deleted when development is completed
     getContent = getEmail.content
     getJson = json.loads(getContent)
     emails = []
